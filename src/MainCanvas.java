@@ -1,6 +1,10 @@
+import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -11,8 +15,12 @@ public class MainCanvas extends JPanel {
 
     private boolean modoAdicionarVertice;
     private boolean modoAdicionarAresta;
+    private boolean modoRemoverVertice;
+    private boolean modoRemoverAresta;
 
     private Vertice origemAresta;
+
+    private Set<Integer> idsDestacados = new HashSet<>();
 
     public MainCanvas(Grafo grafo) {
         this.grafo = grafo;
@@ -28,18 +36,172 @@ public class MainCanvas extends JPanel {
     public void setGrafo(Grafo grafo) {
         this.grafo = grafo;
         origemAresta = null;
+        idsDestacados.clear();
         repaint();
     }
 
     public void ativarAdicionarVertice() {
+        desativarModos();
         modoAdicionarVertice = true;
-        modoAdicionarAresta = false;
-        origemAresta = null;
     }
 
     public void ativarAdicionarAresta() {
+        desativarModos();
         modoAdicionarAresta = true;
+    }
+
+    public void ativarRemoverVertice() {
+        desativarModos();
+        modoRemoverVertice = true;
+    }
+
+    public void ativarRemoverAresta() {
+        desativarModos();
+        modoRemoverAresta = true;
+    }
+
+    public void executarPrim() {
+
+        desativarModos();
+        limparDestaque();
+
+        Vertice inicio = escolherVertice("Vértice inicial para o Prim:");
+
+        if (inicio == null) {
+            return;
+        }
+
+        try {
+            ResultadoPrim resultado = new Prim().calculaPrim(grafo, inicio);
+
+            destacar(resultado.getArestas());
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Custo total da AGM: " + formatarPeso(resultado.getCustoTotal()));
+
+        } catch (IllegalArgumentException ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage());
+        }
+    }
+
+    public void executarBuscaProfundidade() {
+
+        desativarModos();
+        limparDestaque();
+
+        Vertice origem = escolherVertice("Vértice de origem:");
+
+        if (origem == null) {
+            return;
+        }
+
+        Vertice destino = escolherVertice("Vértice de destino:");
+
+        if (destino == null) {
+            return;
+        }
+
+        ResultadoBusca resultado = new BuscaProfundidade().buscar(grafo, origem, destino);
+
+        destacar(resultado.getArvore());
+
+        if (!resultado.isEncontrado()) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Não existe caminho de " + origem.getRotulo()
+                            + " até " + destino.getRotulo() + ".");
+            return;
+        }
+
+        StringBuilder texto = new StringBuilder(origem.getRotulo());
+
+        for (Aresta aresta : resultado.getCaminho()) {
+            texto.append(" -> ").append(aresta.getDestino().getRotulo());
+        }
+
+        JOptionPane.showMessageDialog(this, "Caminho encontrado: " + texto);
+    }
+
+    public void executarRoy() {
+
+        desativarModos();
+        limparDestaque();
+
+        List<List<Vertice>> componentes = new Roy().calcularComponentes(grafo);
+
+        String titulo = grafo.isDirigido()
+                ? "Componentes fortemente conexas:"
+                : "Componentes conexas:";
+
+        StringBuilder texto = new StringBuilder(titulo).append("\n");
+
+        for (List<Vertice> componente : componentes) {
+
+            texto.append("{ ");
+
+            for (Vertice vertice : componente) {
+                texto.append(vertice.getRotulo()).append(" ");
+            }
+
+            texto.append("}\n");
+        }
+
+        JOptionPane.showMessageDialog(this, texto.toString());
+    }
+
+    private void destacar(List<Aresta> arestas) {
+
+        idsDestacados.clear();
+
+        for (Aresta aresta : arestas) {
+            idsDestacados.add(aresta.getId());
+        }
+
+        repaint();
+    }
+
+    private void limparDestaque() {
+        idsDestacados.clear();
+        repaint();
+    }
+
+    private Vertice escolherVertice(String mensagem) {
+
+        List<Vertice> lista = grafo.getVertices();
+
+        if (lista.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "O grafo não tem vértices.");
+            return null;
+        }
+
+        String[] rotulos = new String[lista.size()];
+
+        for (int i = 0; i < lista.size(); i++) {
+            rotulos[i] = lista.get(i).getRotulo();
+        }
+
+        String escolhido = (String) JOptionPane.showInputDialog(
+                this,
+                mensagem,
+                "Selecionar vértice",
+                JOptionPane.QUESTION_MESSAGE,
+                null,
+                rotulos,
+                rotulos[0]);
+
+        if (escolhido == null) {
+            return null;
+        }
+
+        return grafo.getVertice(escolhido);
+    }
+
+    private void desativarModos() {
         modoAdicionarVertice = false;
+        modoAdicionarAresta = false;
+        modoRemoverVertice = false;
+        modoRemoverAresta = false;
         origemAresta = null;
     }
 
@@ -52,6 +214,16 @@ public class MainCanvas extends JPanel {
 
         if (modoAdicionarAresta) {
             selecionarAresta(e.getX(), e.getY());
+            return;
+        }
+
+        if (modoRemoverVertice) {
+            removerVertice(e.getX(), e.getY());
+            return;
+        }
+
+        if (modoRemoverAresta) {
+            removerAresta(e.getX(), e.getY());
         }
     }
 
@@ -96,9 +268,16 @@ public class MainCanvas extends JPanel {
             return;
         }
 
+        String entrada = JOptionPane.showInputDialog(this,"Peso do vértice:");
+        
+        if (entrada == null || entrada.isBlank()) {
+            entrada = "1";
+        }
+        double peso = Double.parseDouble(entrada);
+
         Vertice destino = vertice;
 
-        grafo.adicionarAresta(origemAresta, destino);
+        grafo.adicionarAresta(origemAresta, destino, peso);
 
         origemAresta = null;
 
@@ -120,6 +299,76 @@ public class MainCanvas extends JPanel {
         return null;
     }
 
+    private void removerVertice(int x, int y) {
+
+        Vertice vertice = encontrarVertice(x, y);
+
+        if (vertice == null) {
+            return;
+        }
+
+        grafo.removerVertices(vertice);
+
+        repaint();
+    }
+
+    private void removerAresta(int x, int y) {
+
+        Aresta aresta = encontrarAresta(x, y);
+
+        if (aresta == null) {
+            return;
+        }
+
+        grafo.removerAresta(aresta);
+
+        repaint();
+    }
+
+    private Aresta encontrarAresta(int x, int y) {
+
+        Aresta maisProxima = null;
+        double menorDistancia = 8;
+
+        for (Aresta aresta : grafo.getArestas()) {
+
+            double distancia = distanciaAoSegmento(
+                    x, y,
+                    aresta.getOrigem().getX(), aresta.getOrigem().getY(),
+                    aresta.getDestino().getX(), aresta.getDestino().getY());
+
+            if (distancia < menorDistancia) {
+                menorDistancia = distancia;
+                maisProxima = aresta;
+            }
+        }
+
+        return maisProxima;
+    }
+
+    private double distanciaAoSegmento(
+            int px, int py, int ax, int ay, int bx, int by) {
+
+        double dx = bx - ax;
+        double dy = by - ay;
+        double comprimentoQuadrado = dx * dx + dy * dy;
+
+        double t = 0;
+
+        if (comprimentoQuadrado > 0) {
+            t = ((px - ax) * dx + (py - ay) * dy) / comprimentoQuadrado;
+            t = Math.max(0, Math.min(1, t));
+        }
+
+        double projX = ax + t * dx;
+        double projY = ay + t * dy;
+
+        double distX = px - projX;
+        double distY = py - projY;
+
+        return Math.sqrt(distX * distX + distY * distY);
+    }
+
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
@@ -131,12 +380,40 @@ public class MainCanvas extends JPanel {
     private void desenharArestas(Graphics g) {
         for (Aresta aresta : grafo.getArestas()) {
 
+            g.setColor(idsDestacados.contains(aresta.getId())
+                    ? Color.RED
+                    : Color.BLACK);
+
             if (grafo.isDirigido()) {
                 desenharSeta(g, aresta);
             } else {
                 desenharLinha(g, aresta);
             }
+
+            desenharPeso(g, aresta);
         }
+
+        g.setColor(Color.BLACK);
+    }
+
+    private void desenharPeso(Graphics g, Aresta aresta) {
+
+        Vertice origem = aresta.getOrigem();
+        Vertice destino = aresta.getDestino();
+
+        int meioX = (origem.getX() + destino.getX()) / 2;
+        int meioY = (origem.getY() + destino.getY()) / 2;
+
+        g.drawString(formatarPeso(aresta.getPeso()), meioX, meioY - 5);
+    }
+
+    private String formatarPeso(double peso) {
+
+        if (peso == Math.floor(peso)) {
+            return String.valueOf((long) peso);
+        }
+
+        return String.valueOf(peso);
     }
 
     private void desenharLinha(Graphics g, Aresta aresta) {
@@ -155,6 +432,7 @@ public class MainCanvas extends JPanel {
 
         Vertice origem = aresta.getOrigem();
         Vertice destino = aresta.getDestino();
+        
 
         int x1 = origem.getX();
         int y1 = origem.getY();
@@ -162,20 +440,25 @@ public class MainCanvas extends JPanel {
         int x2 = destino.getX();
         int y2 = destino.getY();
 
-        g.drawLine(x1, y1, x2, y2);
-
         double angulo = Math.atan2(y2 - y1, x2 - x1);
+
+        int raioVertice = 15;
+
+        int xPonta = (int) (x2 - raioVertice * Math.cos(angulo));
+        int yPonta = (int) (y2 - raioVertice * Math.sin(angulo));
+
+        g.drawLine(x1, y1, xPonta, yPonta);
 
         int tamanho = 10;
 
-        int x3 = (int) (x2 - tamanho * Math.cos(angulo - Math.PI / 6));
-        int y3 = (int) (y2 - tamanho * Math.sin(angulo - Math.PI / 6));
+        int x3 = (int) (xPonta - tamanho * Math.cos(angulo - Math.PI / 6));
+        int y3 = (int) (yPonta - tamanho * Math.sin(angulo - Math.PI / 6));
 
-        int x4 = (int) (x2 - tamanho * Math.cos(angulo + Math.PI / 6));
-        int y4 = (int) (y2 - tamanho * Math.sin(angulo + Math.PI / 6));
+        int x4 = (int) (xPonta - tamanho * Math.cos(angulo + Math.PI / 6));
+        int y4 = (int) (yPonta - tamanho * Math.sin(angulo + Math.PI / 6));
 
-        g.drawLine(x2, y2, x3, y3);
-        g.drawLine(x2, y2, x4, y4);
+        g.drawLine(xPonta, yPonta, x3, y3);
+        g.drawLine(xPonta, yPonta, x4, y4);
     }
 
     private void desenharVertices(Graphics g) {
