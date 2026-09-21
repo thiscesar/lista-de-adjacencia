@@ -43,10 +43,16 @@ public class Main {
         JMenuBar menuBar = new JMenuBar();
 
         JMenu menuGrafo = new JMenu("Grafo");
+        JMenu menuAlgoritmos = new JMenu("Algoritmos");
 
         JMenuItem novo = new JMenuItem("Novo");
         JMenuItem adicionarVertice = new JMenuItem("Adicionar vértice");
         JMenuItem adicionarAresta = new JMenuItem("Adicionar aresta");
+        JMenuItem removerVertice = new JMenuItem("Remover vértice");
+        JMenuItem removerAresta = new JMenuItem("Remover aresta");
+        JMenuItem prim = new JMenuItem("Prim (AGM)");
+        JMenuItem buscaProfundidade = new JMenuItem("Busca em profundidade guiada");
+        JMenuItem roy = new JMenuItem("Roy (componentes)");
 
         novo.addActionListener(e -> {
 
@@ -63,12 +69,40 @@ public class Main {
             canvas.ativarAdicionarAresta();
         });
 
+        removerVertice.addActionListener(e -> {
+            canvas.ativarRemoverVertice();
+        });
+
+        removerAresta.addActionListener(e -> {
+            canvas.ativarRemoverAresta();
+        });
+
+        prim.addActionListener(e -> {
+            canvas.executarPrim();
+        });
+
+        buscaProfundidade.addActionListener(e -> {
+            canvas.executarBuscaProfundidade();
+        });
+
+        roy.addActionListener(e -> {
+            canvas.executarRoy();
+        });
+
         menuGrafo.add(novo);
         menuGrafo.addSeparator();
         menuGrafo.add(adicionarVertice);
         menuGrafo.add(adicionarAresta);
+        menuGrafo.addSeparator();
+        menuGrafo.add(removerVertice);
+        menuGrafo.add(removerAresta);
+
+        menuAlgoritmos.add(prim);
+        menuAlgoritmos.add(buscaProfundidade);
+        menuAlgoritmos.add(roy);
 
         menuBar.add(menuGrafo);
+        menuBar.add(menuAlgoritmos);
 
         return menuBar;
     }
